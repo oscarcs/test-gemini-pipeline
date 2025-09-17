@@ -1,5 +1,7 @@
 # Isometric building asset pipeline test
 
+![Test Watercolour Image](test-watercolour.png)
+
 **Prerequisites:**  Node.js
 
 1. Install dependencies:
