@@ -11,14 +11,6 @@ const loader = new Loader({
     libraries: ["places", "marker", "geocoding"],
 });
 
-const placeholders = [
-    "Eiffel Tower, Av. Gustave Eiffel, 75007 Paris, France",
-    "Where you grew up",
-    "Buckingham Palace, London SW1A 1AA, UK",
-    "Where you first met each other",
-    "Statue of Liberty, New York, NY 10004, USA"
-];
-
 const App: React.FC = () => {
     const [address, setAddress] = useState<string>('');
     const [error, setError] = useState<string | null>(null);
@@ -27,24 +19,11 @@ const App: React.FC = () => {
     const [isGeneratingPainting, setIsGeneratingPainting] = useState<boolean>(false);
     const [watercolourPainting, setWatercolourPainting] = useState<string>('');
     const [capturedMapImage, setCapturedMapImage] = useState<string>('');
-    const [placeholder, setPlaceholder] = useState<string>(placeholders[0]);
 
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<google.maps.Map | null>(null);
     const markerInstanceRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
     const autocompleteRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        const intervalId = setInterval(() => {
-            setPlaceholder(currentPlaceholder => {
-                const currentIndex = placeholders.indexOf(currentPlaceholder);
-                const nextIndex = (currentIndex + 1) % placeholders.length;
-                return placeholders[nextIndex];
-            });
-        }, 3000); // Change placeholder every 3 seconds
-
-        return () => clearInterval(intervalId);
-    }, []);
 
     const initMap = useCallback(async (location: google.maps.LatLngLiteral, formattedAddr: string) => {
         if (!mapRef.current) return;
@@ -216,16 +195,10 @@ const App: React.FC = () => {
     };
     
     return (
-        <div className="container mx-auto p-4 md:p-8 max-w-4xl">
+        <div className="w-full h-screen p-4 md:p-8">
             <style>{`.pac-container { z-index: 1050 !important; }`}</style>
-            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
-                <header>
-                    <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">Paint A Place</h1>
-                    <p className="text-gray-600 mb-6">Enter the address to your favorite spot, then turn the satellite image into watercolor paintings.</p>
-                </header>
-
+            <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 h-full flex flex-col">
                 <div className="mb-4">
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Full Address</label>
                     <div className="relative">
                         <input
                             ref={autocompleteRef}
@@ -240,7 +213,7 @@ const App: React.FC = () => {
                             }}
                             disabled={isLoading}
                             className="w-full pl-4 pr-12 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition text-gray-900"
-                            placeholder={placeholder}
+                            placeholder="Enter an address..."
                         />
                         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                             {isLoading ? (
@@ -286,7 +259,7 @@ const App: React.FC = () => {
 
                 {error && <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-center" role="alert">{error}</div>}
                 
-                <div className="bg-gray-50 rounded-2xl h-[70vh] shadow-inner overflow-hidden relative">
+                <div className="bg-gray-50 rounded-2xl flex-1 shadow-inner overflow-hidden relative">
                     <div ref={mapRef} className={`w-full h-full rounded-2xl transition-opacity duration-300 ${mapInitialized && !watercolourPainting && !isGeneratingPainting ? 'opacity-100' : 'opacity-0'}`} />
 
                     {!mapInitialized && (
