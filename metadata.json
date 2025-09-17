@@ -1,0 +1,5 @@
+{
+  "name": "Isometric building asset pipeline test",
+  "description": "Test project for generating isometric building assets using Gemini models.",
+  "requestFramePermissions": []
+}
