@@ -1,15 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import { generateWatercolourPainting } from './geminiService';
-import { Loader } from '@googlemaps/js-api-loader';
-
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
-
-const loader = new Loader({
-    apiKey: GOOGLE_MAPS_API_KEY,
-    version: "beta",
-    libraries: ["places", "marker", "geocoding"],
-});
+import { getGoogleMapsLoader, resetGoogleMapsLoader } from './googleMapsService';
+import { APIKeyModal } from './APIKeyModal';
+import { areAPIKeysAvailable, storeAPIKeys, APIKeys } from './apiKeyManager';
 
 const App: React.FC = () => {
     const [address, setAddress] = useState<string>('');
@@ -19,15 +13,45 @@ const App: React.FC = () => {
     const [isGeneratingPainting, setIsGeneratingPainting] = useState<boolean>(false);
     const [watercolourPainting, setWatercolourPainting] = useState<string>('');
     const [capturedMapImage, setCapturedMapImage] = useState<string>('');
+    const [showAPIKeyModal, setShowAPIKeyModal] = useState<boolean>(false);
+    const [keysReady, setKeysReady] = useState<boolean>(false);
 
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<google.maps.Map | null>(null);
     const markerInstanceRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
     const autocompleteRef = useRef<HTMLInputElement>(null);
 
+    // Check for API keys on component mount
+    useEffect(() => {
+        const checkAPIKeys = () => {
+            if (areAPIKeysAvailable()) {
+                setKeysReady(true);
+            } else {
+                setShowAPIKeyModal(true);
+            }
+        };
+        
+        checkAPIKeys();
+    }, []);
+
+    // Handle API key save
+    const handleAPIKeysSave = useCallback((keys: APIKeys) => {
+        try {
+            storeAPIKeys(keys);
+            setKeysReady(true);
+            setShowAPIKeyModal(false);
+            // Reset the Google Maps loader to use the new key
+            resetGoogleMapsLoader();
+            setError(null);
+        } catch (error) {
+            setError('Failed to save API keys. Please try again.');
+        }
+    }, []);
+
     const initMap = useCallback(async (location: google.maps.LatLngLiteral, formattedAddr: string) => {
         if (!mapRef.current) return;
 
+        const loader = getGoogleMapsLoader();
         const { Map } = await loader.importLibrary('maps');
         const { AdvancedMarkerElement } = await loader.importLibrary('marker');
 
@@ -74,9 +98,12 @@ const App: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (!keysReady) return;
+        
         let autocomplete: google.maps.places.Autocomplete;
         let listener: google.maps.MapsEventListener;
 
+        const loader = getGoogleMapsLoader();
         loader.load().then(() => {
             if (autocompleteRef.current) {
                 autocomplete = new google.maps.places.Autocomplete(autocompleteRef.current, {
@@ -98,7 +125,7 @@ const App: React.FC = () => {
                 listener.remove();
             }
         };
-    }, [initMap]);
+    }, [initMap, keysReady]);
 
 
 
@@ -123,6 +150,7 @@ const App: React.FC = () => {
 
         setIsLoading(true);
         try {
+            const loader = getGoogleMapsLoader();
             const { Geocoder } = await loader.importLibrary('geocoding');
             const geocoder = new Geocoder();
             const { results } = await geocoder.geocode({ address });
@@ -195,8 +223,26 @@ const App: React.FC = () => {
     };
     
     return (
-        <div className="w-full h-screen p-4 md:p-8">
+        <>
+            <APIKeyModal 
+                isOpen={showAPIKeyModal}
+                onSave={handleAPIKeysSave}
+            />
+            <div className="w-full h-screen p-4 md:p-8">
             <style>{`.pac-container { z-index: 1050 !important; }`}</style>
+            {!keysReady && !showAPIKeyModal && (
+                <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 h-full flex flex-col items-center justify-center">
+                    <div className="text-center">
+                        <svg className="animate-spin h-8 w-8 text-blue-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <h2 className="text-lg font-semibold text-gray-900">Loading...</h2>
+                        <p className="text-gray-600 mt-2">Checking for API keys</p>
+                    </div>
+                </div>
+            )}
+            {keysReady && (
             <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 h-full flex flex-col">
                 <div className="mb-4">
                     <div className="relative">
@@ -306,7 +352,9 @@ const App: React.FC = () => {
                     )}
                 </div>
             </div>
+            )}
         </div>
+        </>
     );
 };
 

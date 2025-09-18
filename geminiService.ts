@@ -1,13 +1,6 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { GenerateContentResponse } from "@google/genai";
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-if (!GEMINI_API_KEY) {
-  throw new Error("API_KEY environment variable is not set");
-}
-
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+import { getAPIKeys } from "./apiKeyManager";
 
 /**
  * Generates a watercolour painting from a satellite image.
@@ -15,6 +8,14 @@ const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
  * @returns A promise that resolves to a base64-encoded image data URL of the generated painting.
  */
 export async function generateWatercolourPainting(imageDataUrl: string): Promise<string> {
+  // Get API keys dynamically
+  const apiKeys = getAPIKeys();
+  if (!apiKeys) {
+    throw new Error("Gemini API key is not available. Please configure your API keys.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: apiKeys.geminiApiKey });
+
   const match = imageDataUrl.match(/^data:(image\/\w+);base64,(.*)$/);
   if (!match) {
     throw new Error("Invalid image data URL format. Expected 'data:image/...;base64,...'");
