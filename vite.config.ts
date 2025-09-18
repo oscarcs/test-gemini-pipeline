@@ -7,8 +7,9 @@ export default defineConfig(({ mode }) => {
     return {
       plugins: [react()],
       define: {
-        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-        'process.env.GOOGLE_MAPS_API_KEY': JSON.stringify(env.GOOGLE_MAPS_API_KEY),
+        // Make environment variables optional - they can be undefined for runtime API key management
+        'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY || undefined),
+        'process.env.GOOGLE_MAPS_API_KEY': JSON.stringify(env.GOOGLE_MAPS_API_KEY || undefined),
       },
       resolve: {
         alias: {

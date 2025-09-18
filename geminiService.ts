@@ -1,13 +1,17 @@
 import { GoogleGenAI, Modality } from "@google/genai";
 import type { GenerateContentResponse } from "@google/genai";
+import { getApiKeys } from "./apiKeyService";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-if (!GEMINI_API_KEY) {
-  throw new Error("API_KEY environment variable is not set");
+// Initialize GoogleGenAI instance dynamically
+function getGoogleGenAI(): GoogleGenAI {
+  const keys = getApiKeys();
+  
+  if (!keys.geminiApiKey) {
+    throw new Error("Gemini API key is not available. Please provide your API key.");
+  }
+  
+  return new GoogleGenAI({ apiKey: keys.geminiApiKey });
 }
-
-const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
 /**
  * Generates a watercolour painting from a satellite image.
@@ -40,6 +44,7 @@ export async function generateWatercolourPainting(imageDataUrl: string): Promise
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
+      const ai = getGoogleGenAI(); // Get fresh instance with current API key
       const response: GenerateContentResponse = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image-preview',
         contents: { parts: [imagePart, textPart] },
