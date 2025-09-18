@@ -154,7 +154,7 @@ export const ApiKeyModal: React.FC<ApiKeyModalProps> = ({ isOpen, onSubmit }) =>
 
         <div className="mt-4 text-xs text-gray-500 text-center">
           <p>
-            🔒 Your API keys are stored locally in your browser and are not sent to any external servers except the respective API providers.
+            Your API keys are stored locally in your browser and are not sent to any external servers except the respective API providers.
           </p>
         </div>
       </div>
