@@ -100,8 +100,6 @@ const App: React.FC = () => {
         };
     }, [initMap]);
 
-
-
     const captureMapView = useCallback(async (): Promise<string> => {
         if (!mapInstanceRef.current) {
             throw new Error("Map is not initialized.");
@@ -243,7 +241,7 @@ const App: React.FC = () => {
                             {isGeneratingPainting ? (
                                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                             ) : (
-                                watercolourPainting ? '🎨 Re-create Watercolor' : '🎨 Create Watercolor'
+                                watercolourPainting ? 'Re-create Watercolor' : 'Create Watercolor'
                             )}
                         </button>
                     )}
@@ -252,7 +250,7 @@ const App: React.FC = () => {
                             onClick={handleBackToMap}
                             className="flex-grow bg-gray-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-transform transform hover:scale-105 shadow-md flex items-center justify-center h-12 whitespace-nowrap"
                         >
-                            🗺️ Back to Map
+                            Back to Map
                         </button>
                     )}
                 </div>
@@ -272,8 +270,8 @@ const App: React.FC = () => {
                         <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-800 bg-opacity-75 rounded-2xl z-10 transition-opacity duration-300">
                             <div className="text-center text-white p-4">
                                 <svg className="animate-spin h-10 w-10 text-white mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                                <h3 className="text-xl font-semibold">Creating your masterpiece...</h3>
-                                <p className="mt-2 text-gray-300">The AI is warming up its brushes. This may take a moment.</p>
+                                <h3 className="text-xl font-semibold">Generating image...</h3>
+                                <p className="mt-2 text-gray-300">This may take a moment.</p>
                             </div>
                         </div>
                     )}
@@ -283,7 +281,6 @@ const App: React.FC = () => {
                             <div className="flex justify-between items-center p-4 bg-white border-b border-gray-200">
                                 <div>
                                     <h3 className="text-lg font-semibold text-gray-900">Generated Watercolour Painting</h3>
-                                    <p className="text-sm text-gray-600">AI-generated from your 3D satellite view</p>
                                 </div>
                                 <button
                                     onClick={handleDownloadPainting}
