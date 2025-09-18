@@ -2,14 +2,32 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import { generateWatercolourPainting } from './geminiService';
 import { Loader } from '@googlemaps/js-api-loader';
+import { ApiKeyModal } from './ApiKeyModal';
+import { areApiKeysAvailable, getApiKeys, type ApiKeys } from './apiKeyService';
 
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+// Dynamic Google Maps API loader
+let loader: Loader | null = null;
 
-const loader = new Loader({
-    apiKey: GOOGLE_MAPS_API_KEY,
-    version: "beta",
-    libraries: ["places", "marker", "geocoding"],
-});
+function getGoogleMapsLoader(): Loader {
+    if (!loader) {
+        const keys = getApiKeys();
+        if (!keys.googleMapsApiKey) {
+            throw new Error("Google Maps API key is not available. Please provide your API key.");
+        }
+        
+        loader = new Loader({
+            apiKey: keys.googleMapsApiKey,
+            version: "beta",
+            libraries: ["places", "marker", "geocoding"],
+        });
+    }
+    return loader;
+}
+
+// Reset loader when API keys change
+function resetGoogleMapsLoader(): void {
+    loader = null;
+}
 
 const App: React.FC = () => {
     const [address, setAddress] = useState<string>('');
@@ -19,17 +37,43 @@ const App: React.FC = () => {
     const [isGeneratingPainting, setIsGeneratingPainting] = useState<boolean>(false);
     const [watercolourPainting, setWatercolourPainting] = useState<string>('');
     const [capturedMapImage, setCapturedMapImage] = useState<string>('');
+    const [showApiKeyModal, setShowApiKeyModal] = useState<boolean>(false);
+    const [isCheckingApiKeys, setIsCheckingApiKeys] = useState<boolean>(true);
 
     const mapRef = useRef<HTMLDivElement>(null);
     const mapInstanceRef = useRef<google.maps.Map | null>(null);
     const markerInstanceRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
     const autocompleteRef = useRef<HTMLInputElement>(null);
 
+    // Check API keys on startup
+    useEffect(() => {
+        const checkApiKeys = () => {
+            if (areApiKeysAvailable()) {
+                setShowApiKeyModal(false);
+            } else {
+                setShowApiKeyModal(true);
+            }
+            setIsCheckingApiKeys(false);
+        };
+        
+        checkApiKeys();
+    }, []);
+
+    // Handle API key submission
+    const handleApiKeysSubmit = (keys: ApiKeys) => {
+        setShowApiKeyModal(false);
+        resetGoogleMapsLoader(); // Reset loader to use new keys
+        // Clear any existing error that might be related to missing API keys
+        setError(null);
+    };
+
     const initMap = useCallback(async (location: google.maps.LatLngLiteral, formattedAddr: string) => {
         if (!mapRef.current) return;
 
-        const { Map } = await loader.importLibrary('maps');
-        const { AdvancedMarkerElement } = await loader.importLibrary('marker');
+        try {
+            const mapsLoader = getGoogleMapsLoader();
+            const { Map } = await mapsLoader.importLibrary('maps');
+            const { AdvancedMarkerElement } = await mapsLoader.importLibrary('marker');
 
         const mapOptions: google.maps.MapOptions = {
             center: location,
@@ -66,39 +110,62 @@ const App: React.FC = () => {
             markerInstanceRef.current.map = mapInstanceRef.current;
         }
 
-
-
         setMapInitialized(true);
         setWatercolourPainting('');
         setCapturedMapImage('');
+        } catch (error) {
+            console.error('Error initializing map:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to initialize map';
+            if (errorMessage.includes('API key')) {
+                setShowApiKeyModal(true);
+                setError('Google Maps API key is invalid or missing. Please provide a valid API key.');
+            } else {
+                setError(errorMessage);
+            }
+        }
     }, []);
 
     useEffect(() => {
         let autocomplete: google.maps.places.Autocomplete;
         let listener: google.maps.MapsEventListener;
 
-        loader.load().then(() => {
-            if (autocompleteRef.current) {
-                autocomplete = new google.maps.places.Autocomplete(autocompleteRef.current, {
-                    types: ['address'],
-                });
+        // Only initialize autocomplete if API keys are available
+        if (!showApiKeyModal && areApiKeysAvailable()) {
+            try {
+                const mapsLoader = getGoogleMapsLoader();
+                mapsLoader.load().then(() => {
+                    if (autocompleteRef.current) {
+                        autocomplete = new google.maps.places.Autocomplete(autocompleteRef.current, {
+                            types: ['address'],
+                        });
 
-                listener = autocomplete.addListener('place_changed', () => {
-                    const place = autocomplete.getPlace();
-                    if (place.geometry?.location && place.formatted_address) {
-                        setAddress(place.formatted_address);
-                        initMap(place.geometry.location.toJSON(), place.formatted_address);
+                        listener = autocomplete.addListener('place_changed', () => {
+                            const place = autocomplete.getPlace();
+                            if (place.geometry?.location && place.formatted_address) {
+                                setAddress(place.formatted_address);
+                                initMap(place.geometry.location.toJSON(), place.formatted_address);
+                            }
+                        });
+                    }
+                }).catch((error) => {
+                    console.error('Error loading Google Maps for autocomplete:', error);
+                    if (error.message.includes('API key')) {
+                        setShowApiKeyModal(true);
+                        setError('Google Maps API key is invalid. Please provide a valid API key.');
                     }
                 });
+            } catch (error) {
+                console.error('Error initializing Google Maps loader:', error);
+                setShowApiKeyModal(true);
             }
-        });
+        }
 
         return () => {
             if (listener) {
                 listener.remove();
             }
         };
-    }, [initMap]);
+    }, [initMap, showApiKeyModal]);
 
     const captureMapView = useCallback(async (): Promise<string> => {
         if (!mapInstanceRef.current) {
@@ -121,7 +188,8 @@ const App: React.FC = () => {
 
         setIsLoading(true);
         try {
-            const { Geocoder } = await loader.importLibrary('geocoding');
+            const mapsLoader = getGoogleMapsLoader();
+            const { Geocoder } = await mapsLoader.importLibrary('geocoding');
             const geocoder = new Geocoder();
             const { results } = await geocoder.geocode({ address });
 
@@ -192,9 +260,31 @@ const App: React.FC = () => {
         document.body.removeChild(link);
     };
     
+    // Show loading spinner while checking API keys
+    if (isCheckingApiKeys) {
+        return (
+            <div className="w-full h-screen flex items-center justify-center bg-gray-100">
+                <div className="text-center">
+                    <svg className="animate-spin h-8 w-8 text-blue-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p className="text-gray-600">Initializing application...</p>
+                </div>
+            </div>
+        );
+    }
+    
     return (
         <div className="w-full h-screen p-4 md:p-8">
             <style>{`.pac-container { z-index: 1050 !important; }`}</style>
+            
+            {/* API Key Modal */}
+            <ApiKeyModal 
+                isOpen={showApiKeyModal} 
+                onSubmit={handleApiKeysSubmit} 
+            />
+            
             <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8 h-full flex flex-col">
                 <div className="mb-4">
                     <div className="relative">
